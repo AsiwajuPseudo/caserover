@@ -1,1 +1,1 @@
-print('Test 1 from core, second try')
+print('Test 1 from core, third commit')
