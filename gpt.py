@@ -2,6 +2,7 @@
    Class for interacting with the OpenAI API endpoints.
    1. embedd_text: for embedding text and creat a vector
    2. json_gpt: using the gpt-4o model provided by OpenAI and generate a JSON formatted response
+   3. gpt_3 and gpt_4o are for pure text generation using the GPT 3.5 Turbo and GPT 4o models
 
 """
 
