@@ -13,12 +13,6 @@ from flask_cors import CORS
 from database import Database
 from file_control import File_Control
 from collector import Collector
-from process import Process
-from euclid import Euclid
-from graph import Graph
-from tools import Tools
-from file import File
-from temp_file import create_dir,delete_dir, generate_tree, get_dir,process_path,move_files, deli_file, search_file
 
 database=Database()
 collections=Euclid()
