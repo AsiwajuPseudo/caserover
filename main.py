@@ -74,9 +74,9 @@ def register():
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
-    atype = data.get('type')
+    user_type = data.get('type')
     code = data.get('code')
     password = data.get('password')
     phone = data.get('phone')
-    add = database.add_user(name, email, phone, atype, code, password)
+    add = database.add_user(name, email, phone, user_type, code, password)
     return add
