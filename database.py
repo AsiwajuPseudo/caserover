@@ -100,3 +100,75 @@ class Database:
                     return {"status": "Invalid Password"}
         except Exception as e:
             return {"status": "Error: " + str(e)}
+        
+    def subscribe_user(self, user_id, next_date):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE user_id=?", (next_date, user_id))
+                conn.commit()
+                return {'status':'success'}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+
+    def subscribe_org(self, code, next_date):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE code=?", (code, next_date))
+                conn.commit()
+                return {'status':'success'}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+
+    def user_profile(self, user_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+                user = cursor.fetchone()
+                if user:
+                    # Base response
+                    response = { "status": "success", "name": user[1], "email": user[2], "phone": user[3], "user_type": user[4], "code": user[5], "status": user[7], "next_date": user[8], "isadmin": user[10]}
+
+                    # Add lawfirm name if user type is "org"
+                    if user[4] == "org":
+                        response["lawfirm_name"] = user[6]
+                    
+                    return response
+                else:
+                    return {"status": "Invalid email or password"}
+        except Exception as e:
+            print("Error on loading profile: " + str(e))
+            return {"status": "Error: " + str(e)}
+
+    def profiles(self):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users")
+                users = cursor.fetchall()
+                users_ = []
+                for user in users:
+                    # Base response  
+                    user_data = {"user_id": user[0], "name": user[1], "email": user[2], "phone": user[3], "user_type": user[4], "code": user[5], "status": user[7], "next_date": user[8], "isadmin": user[10]}
+                    
+                    # Add lawfirm name if user type is "org"
+                    if user[4] == "org":
+                        user_data["lawfirm_name"] = user[6]   
+                        
+                    users_.append(user_data)
+                return users_
+        except Exception as e:
+            print("Error on loading profiles: " + str(e))
+            return []
+
+    def delete_user(self, user_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM users WHERE user_id=?", (user_id,))
+                conn.commit()
+                return {"status":"success"}
+        except Exception as e:
+            return {"status":"Error: " + str(e)}

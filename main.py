@@ -91,6 +91,46 @@ def change_password():
   passwd = database.change_password(user_id, old_password, new_password)
   return passwd
 
+#view user profile
+@app.route('/user_profile', methods=['GET'])
+def view_user_profile():
+  user_id = request.args.get('user_id')
+  profile = database.user_profile(user_id)
+  return profile
+
+#view all users profile
+@app.route('/allusers', methods=['GET'])
+def view_all_profiles():
+  users = database.profiles()
+  return {'users': users}
+
+# Subscribe a user
+@app.route('/subscribe_user', methods=['POST'])
+def subscribe_user():
+  data = request.get_json()
+  user_id=data.get('user_id')
+  next_date=data.get('next_date')
+  update=database.subscribe_user(user_id,next_date)
+  users=database.profiles()
+  return {'status':update,'users':users}
+
+# Subscribe an organisation
+@app.route('/subscribe_org', methods=['POST'])
+def subscribe_orginisation():
+  data = request.get_json()
+  code = data.get('code')
+  next_date=data.get('next_date')
+  update=database.subscribe_org(code,next_date)
+  users=database.profiles()
+  return {'status': update,'users':users}
+
+# Delete a user profile
+@app.route('/delete_user', methods=['GET'])
+def delete_profile():
+  user_id=request.args.get('user_id')
+  op = database.delete_user(user_id)
+  users=database.profiles()
+  return {'status': op, 'users':users}
 
 #------------
 if __name__=='__main__':
