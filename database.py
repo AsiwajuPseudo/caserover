@@ -25,7 +25,12 @@ class Database:
         user_id = "user" + str(random.randint(1000, 9999))
         status = "trial"
         if isadmin=="true":
-            code=random.randint(10000,99999)
+            while True:
+                new_code = random.randint(10000,99999)
+                cursor.execute("SELECT * FROM users WHERE code=?", (new_code,))
+                if not cursor.fetchone():
+                    code=new_code
+                    break
         current_datetime = datetime.now()
         next_billing_date = current_datetime + timedelta(days=7)
         next_date=str(next_billing_date.date())
