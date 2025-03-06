@@ -79,3 +79,8 @@ def register():
         isadmin='true'
     add = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
     return add
+
+
+#------------
+if __name__=='__main__':
+    app.run(host='0.0.0.0',port='8080')
