@@ -137,7 +137,7 @@ class Database:
                     
                     return response
                 else:
-                    return {"status": "Invalid email or password"}
+                    return {"status": "User does not exist"}
         except Exception as e:
             print("Error on loading profile: " + str(e))
             return {"status": "Error: " + str(e)}
