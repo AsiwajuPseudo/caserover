@@ -69,7 +69,7 @@ def register():
     name = data.get('name')
     email = data.get('email')
     user_type = data.get('user_type')
-    code = data.get('code')
+    code = "00000"
     password = data.get('password')
     phone = data.get('phone')
     lawfirm_name="individual"
