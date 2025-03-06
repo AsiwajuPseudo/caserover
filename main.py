@@ -80,6 +80,7 @@ def register():
     add = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
     return add
 
+
 # Change Password
 @app.route('/password', methods=['POST'])
 def change_password():
@@ -89,3 +90,9 @@ def change_password():
   user_id = data.get('user_id')
   passwd = database.change_password(user_id, old_password, new_password)
   return passwd
+
+
+#------------
+if __name__=='__main__':
+    app.run(host='0.0.0.0',port='8080')
+

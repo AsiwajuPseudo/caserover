@@ -24,6 +24,8 @@ class Database:
     def add_user(self, name, email, phone,user_type,code, lawfirm_name, password, isadmin):
         user_id = "user" + str(random.randint(1000, 9999))
         status = "trial"
+        if isadmin=="true":
+            code=random.randint(10000,99999)
         current_datetime = datetime.now()
         next_billing_date = current_datetime + timedelta(days=7)
         next_date=str(next_billing_date.date())
@@ -50,7 +52,7 @@ class Database:
                 user = cursor.fetchone()
                 if user:
                     user_id = user[0]
-                    next_billing_date = user[7]  # Assuming the next_billing_date is at the 7th index
+                    next_billing_date = user[8]  # Assuming the next_billing_date is at the 7th index
                     current_date = datetime.now().date()
                     # Check if current date is before the next billing date
                     if current_date < datetime.strptime(next_billing_date, "%Y-%m-%d").date():
