@@ -57,7 +57,7 @@ def admin_login():
     password = data.get('password')
     key = data.get('key')
     if key == "0000admincenter0000":
-        log = database.adminlogin(email, password)
+        log = database.admin_login(email, password)
         return log
     else:
         return {'status': 'Account not authorized to be admin'}
@@ -73,9 +73,19 @@ def register():
     password = data.get('password')
     phone = data.get('phone')
     lawfirm_name="individual"
-    isadmin='false'
+    isadmin = 'false'
     if user_type=="org":
         lawfirm_name = data.get('lawfirm_name')
-        isadmin='true'
+        isadmin ='true'
     add = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
     return add
+
+# Change Password
+@app.route('/password', methods=['POST'])
+def change_password():
+  data = request.get_json()
+  old_password = data.get('old_password')
+  new_password = data.get('new_password')
+  user_id = data.get('user_id')
+  passwd = database.change_password(user_id, old_password, new_password)
+  return passwd
