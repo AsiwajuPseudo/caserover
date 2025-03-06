@@ -9,7 +9,7 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                              (user_id TEXT, name TEXT, email TEXT, phone TEXT,type TEXT,code TEXT,status TEXT,next_date TEXT, password TEXT)''')
+                              (user_id TEXT, name TEXT, email TEXT, phone TEXT,user_type TEXT,code TEXT,lawfirm_name TEXT,status TEXT,next_date TEXT, password TEXT, isadmin TEXT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS models
                               (model_id TEXT,user_id TEXT,name TEXT,table_name TEXT,model TEXT,n INTEGER)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS chats
@@ -21,7 +21,7 @@ class Database:
 
         conn.commit()
 
-    def add_user(self, name, email, phone,atype,code, password):
+    def add_user(self, name, email, phone,user_type,code, lawfirm_name, password, isadmin):
         user_id = "user" + str(random.randint(1000, 9999))
         status = "trial"
         current_datetime = datetime.now()
@@ -34,8 +34,8 @@ class Database:
                 existing_user = cursor.fetchone()
                 if existing_user:
                     return {"status": "Email already exists"}
-                cursor.execute("INSERT INTO users (user_id, name, email, phone, type, code, status, next_date, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                               (user_id, name, email, phone,atype, code, status, next_date, password))
+                cursor.execute("INSERT INTO users (user_id, name, email, phone, user_type, code, lawfirm_name, status, next_date, password, isadmin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                               (user_id, name, email, phone,user_type, code, lawfirm_name, status, next_date, password, isadmin))
                 conn.commit()
                 return {"status": "success","user":user_id}
         except Exception as e:
