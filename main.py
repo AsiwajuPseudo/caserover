@@ -15,7 +15,7 @@ from file_control import File_Control
 from collector import Collector
 
 database=Database()
-collections=Euclid()
+# collections=Euclid()
 
 app = Flask(__name__)
 CORS(app)
@@ -68,9 +68,14 @@ def register():
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
-    user_type = data.get('type')
+    user_type = data.get('user_type')
     code = data.get('code')
     password = data.get('password')
     phone = data.get('phone')
-    add = database.add_user(name, email, phone, user_type, code, password)
+    lawfirm_name="individual"
+    isadmin='false'
+    if user_type=="org":
+        lawfirm_name = data.get('lawfirm_name')
+        isadmin='true'
+    add = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
     return add
