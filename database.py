@@ -440,21 +440,33 @@ class Database:
         except Exception as e:
             return {"status": "Error: " + str(e)}
         
-    def subscribe_user(self, user_id, next_date):
+    def subscribe_user(self, admin_id, user_id, next_date):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                # Verify the requesting admin is a valid superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
                 cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE user_id=?", (next_date, user_id))
                 conn.commit()
                 return {'status':'success'}
         except Exception as e:
             return {"status": "Error: " + str(e)}
 
-    def subscribe_org(self, code, next_date):
+    def subscribe_org(self, admin_id, code, next_date):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE code=?", (code, next_date))
+                # Verify the requesting admin is a valid superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
+                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE code=?", (next_date, code))
                 conn.commit()
                 return {'status':'success'}
         except Exception as e:
