@@ -156,7 +156,7 @@ def admin_add_user():
         return result
     
 # Admin deletes a user from their lawfirm
-@app.route('/admin/delete_user', methods=['POST'])
+@app.route('/admin_delete_user', methods=['POST'])
 def admin_delete_user():
     data = request.get_json()
     admin_id = data.get('admin_id')
@@ -178,7 +178,7 @@ def get_org_users():
     return result
     
 # Admin updates a user's status in their lawfirm
-@app.route('/admin/update_user_status', methods=['POST'])
+@app.route('/admin_update_user_status', methods=['POST'])
 def admin_update_user_status():
     data = request.get_json()
     admin_id = data.get('admin_id')
