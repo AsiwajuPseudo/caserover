@@ -78,7 +78,7 @@ class Database:
                 
                 # Hash the password before inserting
                 hashed_password = self._hash_password(password)
-                created_at = str(datetime.datetime.now().date())
+                created_at = str(datetime.now().date())
                 
                 cursor.execute("INSERT INTO superusers (admin_id, name, email, password, created_at) VALUES (?,?,?,?,?)",
                                    (new_admin_id, name, email, hashed_password, created_at))
