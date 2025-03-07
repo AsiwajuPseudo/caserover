@@ -2,6 +2,7 @@ import sqlite3
 import random
 import json
 from datetime import datetime, timedelta
+import hashlib
 
 class Database:
     def __init__(self):
@@ -18,8 +19,192 @@ class Database:
                               (chat_id TEXT,user_id TEXT,user TEXT,system TEXT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS media
                               (chat_id TEXT,user_id TEXT,file TEXT,content TEXT)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS superusers
+                              (admin_id TEXT, name TEXT, email TEXT, password TEXT, created_at TEXT)''')
 
         conn.commit()
+        
+        # Create default superuser if none exists
+        self.create_default_superuser()
+        
+    def create_default_superuser(self):
+        # Create default superuser if none exists
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Check if any superuser exists
+                cursor.execute("SELECT COUNT(*) FROM superusers")
+                count = cursor.fetchone()[0]
+                
+                if count == 0:
+                    # Create a default superuser
+                    admin_id = "admin" + str(random.randint(1000, 9999))
+                    name = "Super Admin"
+                    email = "admin@super.com"
+                    # Default password is "admin123" (hashed)
+                    password = self._hash_password("admin123")
+                    created_at = str(datetime.now().date())
+                    
+                    cursor.execute("INSERT INTO superusers (admin_id, name, email, password, created_at) VALUES (?, ?, ?, ?, ?)",
+                                   (admin_id, name, email, password, created_at))
+                    conn.commit()
+                    print(f"Default superuser created with email: {email} and password: {password}")
+        except Exception as e:
+            print("Error creating default superuser: " + str(e))
+            
+    def _hash_password(self, password):
+        # Hash password using SHA-256
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    # Add new superuser
+    def add_superuser(self, admin_id, name, email, password):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Verify the requesting admin is a valid superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
+                # Check if the superuser already exists
+                cursor.execute("SELECT * FROM superusers WHERE email=?", (email,))
+                existing_admin = cursor.fetchone()
+                if existing_admin:
+                    return {"status": "Superuser with this email already exists"}
+                
+                # Create a new superuser
+                new_admin_id = "admin" + str(random.randint(1000, 9999))
+                
+                # Hash the password before inserting
+                hashed_password = self._hash_password(password)
+                created_at = str(datetime.datetime.now().date())
+                
+                cursor.execute("INSERT INTO superusers (admin_id, name, email, password, created_at) VALUES (?,?,?,?,?)",
+                                   (new_admin_id, name, email, hashed_password, created_at))
+                conn.commit()
+                return {"status": "success", admin_id: new_admin_id}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+    
+    # Superuser login
+    def superuser_login(self, email, password):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Hash the password before checking
+                hashed_password = self._hash_password(password)
+                # Check if the email and password match for super user
+                cursor.execute("SELECT * FROM superusers WHERE email=? AND password=?", (email, hashed_password))
+                admin = cursor.fetchone()
+                if admin:
+                    admin_id = admin[0]
+                    return {"status": "success","admin":admin_id}
+                else:
+                    return {"status": "Invalid email or password"}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+        
+     # Change superuser password
+    def change_superuser_password(self, admin_id, old_password, new_password):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Hash the old password before checking
+                hashed_old_password = self._hash_password(old_password)
+                # Check if the old password matches
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=? AND password=?", (admin_id, hashed_old_password))
+                admin = cursor.fetchone()
+                if not admin:
+                    return {"status": "Invalid Password"}
+                
+                    # Hash the new password before updating
+                hashed_new_password = self._hash_password(new_password)
+                # Update password
+                cursor.execute("UPDATE superusers SET password=? WHERE admin_id=?", (hashed_new_password, admin_id))
+                conn.commit()
+                return {"status": "success"}
+
+        except Exception as e:
+            return {"status": "Error: " + str(e)}  
+        
+    # Get all superusers
+    def get_superusers(self, admin_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Verify the requesting admin is a valid superuser 
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
+                # Get all superusers
+                cursor.execute("SELECT admin_id, name, email, created_at FROM superusers")
+                admins = cursor.fetchall()
+                
+                admins_list = []
+                for admin in admins:
+                    admin_data = {
+                        "admin_id": admin[0],
+                        "name": admin[1],
+                        "email": admin[2],
+                        "created_at": admin[3]
+                    }
+                    admins_list.append(admin_data)
+                
+                return {"status": "success", "superusers": admins_list}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+        
+    # Delete superuser
+    def delete_superuser(self, admin_id, admin_to_delete_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Verify the requesting admin is a valid superuser 
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
+                # Cannot delete self
+                if admin_id == admin_to_delete_id:
+                    return {"status": "Cannot delete your own account!"}
+                
+                # Check how many superusers exist
+                cursor.execute("SELECT COUNT(*) FROM superusers")
+                count = cursor.fetchone()[0]
+                if count <= 1:
+                    return {"status": "Cannot delete the last superuser!"}
+                
+                # Check if the superuser to be deleted exists
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_to_delete_id,))
+                admin_to_delete = cursor.fetchone()
+                if not admin_to_delete:
+                    return {"status": "Superuser does not exist"}
+                
+                # Delete the superuser
+                cursor.execute("DELETE FROM superusers WHERE admin_id=?", (admin_to_delete_id,))
+                conn.commit()
+                
+                # Get updated list of superusers
+                cursor.execute("SELECT admin_id, name, email, created_at FROM superusers")
+                admins = cursor.fetchall()
+                
+                admins_list = []
+                for admin in admins:
+                    admin_data = {
+                        "admin_id": admin[0],
+                        "name": admin[1],
+                        "email": admin[2],
+                        "created_at": admin[3]
+                    }
+                    admins_list.append(admin_data)
+                
+                return {"status": "success", "superusers": admins_list}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
 
     def add_user(self, name, email, phone,user_type,code, lawfirm_name, password, isadmin):
         user_id = "user" + str(random.randint(1000, 9999))
@@ -136,7 +321,7 @@ class Database:
         except Exception as e:
             return {"status": "Error: " + str(e)}
         
-# Admin get users in orgamization (add date joined)
+# Admin get users in orgamization
     def get_org_users(self, admin_id):
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -255,21 +440,33 @@ class Database:
         except Exception as e:
             return {"status": "Error: " + str(e)}
         
-    def subscribe_user(self, user_id, next_date):
+    def subscribe_user(self, admin_id, user_id, next_date):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                # Verify the requesting admin is a valid superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
                 cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE user_id=?", (next_date, user_id))
                 conn.commit()
                 return {'status':'success'}
         except Exception as e:
             return {"status": "Error: " + str(e)}
 
-    def subscribe_org(self, code, next_date):
+    def subscribe_org(self, admin_id, code, next_date):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE code=?", (code, next_date))
+                # Verify the requesting admin is a valid superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+                if not requesting_admin:
+                    return {"status": "Unauthorized access!"}
+                
+                cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE code=?", (next_date, code))
                 conn.commit()
                 return {'status':'success'}
         except Exception as e:
