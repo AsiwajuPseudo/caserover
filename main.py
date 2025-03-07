@@ -49,18 +49,51 @@ def editor_login():
   log=database.login(email,password)
   return log
 
-# Admin login to account
-@app.route('/adminlogin', methods=['POST'])
-def admin_login():
+# Superuser login to account
+@app.route('/superuserlogin', methods=['POST'])
+def superuser_login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
-    key = data.get('key')
-    if key == "0000admincenter0000":
-        log = database.admin_login(email, password)
-        return log
-    else:
-        return {'status': 'Account not authorized to be admin'}
+    result = database.superuser_login(email, password)
+    return result
+
+# Add new superuser
+@app.route('/add_superuser', methods=['POST'])
+def add_superuser():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    result = database.add_superuser(admin_id, name, email, password)
+    return result
+
+# Change superuser password
+@app.route('/change_superuser_password', methods=['POST'])
+def change_superuser_password():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    result = database.change_superuser_password(admin_id, old_password, new_password)
+    return result
+
+# Get all superusers
+@app.route('/get_superusers', methods=['GET'])
+def get_superusers():
+    admin_id = request.args.get('admin_id')
+    result = database.get_superusers(admin_id)
+    return result
+
+# Delete a superuser
+@app.route('/delete_superuser', methods=['POST'])
+def delete_superuser():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    admin_id_to_delete_id = data.get('admin_id_to_delete')
+    result = database.delete_superuser(admin_id, admin_id_to_delete_id)
+    return result
 
 # Register a new account
 @app.route('/register', methods=['POST'])
