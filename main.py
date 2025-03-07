@@ -24,7 +24,7 @@ CORS(app)
 
 
 #--------------------------------------------------------------------------------------------------------------
-#AUTH AND ACCOUNT
+# AUTH AND ACCOUNT MANAGEMENT
 
 # Pinging the system
 @app.route('/ping', methods=['GET'])
@@ -77,8 +77,8 @@ def register():
     if user_type=="org":
         lawfirm_name = data.get('lawfirm_name')
         isadmin ='true'
-    add = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
-    return add
+    result = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
+    return result
 
 
 # Change Password
@@ -131,6 +131,68 @@ def delete_profile():
   op = database.delete_user(user_id)
   users=database.profiles()
   return {'status': op, 'users':users}
+
+#---------------------------------------------------------------------------------------------------------------
+
+# ADMIN USER MANAGEMENT
+
+# Admin adds a new user to their lawfirm
+@app.route('/admin_add_user', methods=['POST'])
+def admin_add_user():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    password = data.get('password')
+    
+    result = database.admin_add_user(admin_id, name, email, phone, password)
+    
+    if result.get('status') == 'success':
+        # Get updated list of users in the organization
+        org_users = database.get_org_users(admin_id)
+        return {'status': 'success', 'user': result.get('user'), 'org_users': org_users.get('users',[])}
+    else:
+        return result
+    
+# Admin deletes a user from their lawfirm
+@app.route('/admin/delete_user', methods=['POST'])
+def admin_delete_user():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    user_id_to_delete = data.get('user_id')
+    
+    delete = database.admin_delete_user(admin_id, user_id_to_delete)
+    if delete.get('status') == 'success':
+        # Get updated list of users in the organization
+        org_users = database.get_org_users(admin_id)
+        return {'status': 'success', 'org_users': org_users.get('users',[])}
+    else:
+        return delete
+    
+# Admin views all users in their lawfirm
+@app.route('/org_users', methods=['GET'])
+def get_org_users():
+    admin_id = request.args.get('admin_id')
+    result = database.get_org_users(admin_id)
+    return result
+    
+# Admin updates a user's status in their lawfirm
+@app.route('/admin/update_user_status', methods=['POST'])
+def admin_update_user_status():
+    data = request.get_json()
+    admin_id = data.get('admin_id')
+    user_id = data.get('user_id')
+    new_status = data.get('status')
+    
+    update = database.admin_update_user_status(admin_id, user_id, new_status)
+    
+    if update.get('status') == 'success':
+        # Get updated list of users in the organization
+        org_users = database.get_org_users(admin_id)
+        return {'status': 'success', 'org_users': org_users.get('users',[])}
+    else:
+        return update
 
 #------------
 if __name__=='__main__':
