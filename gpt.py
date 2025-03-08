@@ -32,7 +32,6 @@ class GPT:
   def json_gpt(self,message,tokens=4096):
     openai.api_key=self.key
     res = openai.chat.completions.create(model="gpt-4o",messages=message,temperature=0.4,response_format={"type": "json_object"},max_tokens=tokens)
-    print(res)
     return res.choices[0].message.content
 
   def gpt_3(self, text, tokens=500):
