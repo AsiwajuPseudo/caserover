@@ -19,6 +19,10 @@ import docx
 import time
 import random
 import openpyxl
+import mammoth
+from bs4 import BeautifulSoup
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Inches, Pt
 from langchain.text_splitter import TokenTextSplitter
 
 class Collector:
@@ -165,13 +169,81 @@ class Collector:
         
         # Iterate through each paragraph in the document
         for para in doc.paragraphs:
+            ident=0
+            if para.paragraph_format.left_indent is not None:
+                ident=para.paragraph_format.left_indent.inches
             paragraph_data = {
                 'style': para.style.name,
-                'text': para.text
+                'text': para.text,
+                'ident':ident
             }
             paragraphs_with_styles.append(paragraph_data)
         
         return paragraphs_with_styles
+
+    @staticmethod
+    def docx_to_html(path):
+        with open(path, "rb") as docx_file:
+            result = mammoth.convert_to_html(docx_file)
+            html = result.value
+        
+        return html
+
+    @staticmethod
+    def html_styles(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            soup = BeautifulSoup(html_content, 'html.parser')
+            parts = soup.find_all('div')
+            if not parts:
+                return []  # Return empty list if 'Section0' div is not found
+
+            elements_with_styles = []
+            for part in parts:
+                for element in part.find_all(recursive=False): #only immediate children
+                    if element.name:
+                        style = element.name  # Use tag name as style equivalent
+                        text = element.get_text(strip=False)
+                        ident = 0.0
+
+                        # Extract left margin indent from style attribute
+                        if element.has_attr('style'):
+                            style_str = element['style']
+                            if 'margin-left:' in style_str:
+                                margin_left = style_str.split('margin-left:')[1].split(';')[0].strip()
+                                if 'px' in margin_left:
+                                    try:
+                                        ident = float(margin_left.replace('px', '')) / 96.0 # approximate conversion from px to inches (96 dpi)
+                                    except ValueError:
+                                        ident = 0.0 # handle non-numeric margin values
+                                elif 'in' in margin_left:
+                                  try:
+                                    ident = float(margin_left.replace('in', ''))
+                                  except ValueError:
+                                    ident = 0.0
+                                elif 'pt' in margin_left:
+                                  try:
+                                    ident = float(margin_left.replace('pt', '')) / 72.0 # approximate conversion from pt to inches (72 dpi)
+                                  except ValueError:
+                                    ident = 0.0
+
+                        element_data = {
+                            'style': style,
+                            'text': text.replace('\xa0',' '),
+                            'ident': ident
+                        }
+                        elements_with_styles.append(element_data)
+
+            return elements_with_styles
+
+        except FileNotFoundError:
+            print(f"Error: File not found at {path}")
+            return []
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return []
 
     @staticmethod
     def pdf_raw(path):
