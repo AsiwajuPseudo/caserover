@@ -291,18 +291,6 @@ def deli_chat():
   return {"status":deli,"chats":chats}
 
 #retrieve all chats belonging to a user
-@app.route('/allchats', methods=['GET'])
-def collect_all_chats():
-  chats=database.allchats()
-  tables=collections.tables()
-  table_data=[]
-  tables_list=[]
-  for col in tables:
-    tables_list.append(col.name)
-
-  return {"chats":chats,"tables":tables_list}
-
-#retrieve all chats belonging to a user
 @app.route('/messagesanduser', methods=['GET'])
 def collect_messages_and_user():
   chat=request.args.get('chat_id')
@@ -323,7 +311,7 @@ def collect_chats():
   table_data=[]
   tables_list=[]
   for col in tables:
-    tables_list.append(col.name)
+    tables_list.append(col)
 
   return {"chats":chats,"tables":tables_list}
 
