@@ -4,5 +4,5 @@ Case Rover is an AI-powered legal research tool for lawyers in Zimbabwe. Launche
 
 This repository is for development purposes only.
 
-*Login*
+**Login**
 You can login for Case Rover at caserover.co.zw/login
