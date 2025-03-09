@@ -8,3 +8,5 @@ This repository is for development purposes only. Do not use the code for anythi
 
 ## Login
 You can login for Case Rover at caserover.co.zw/login . You can login with an email and password only. If you have not registered for Case Rover be sure to create an account first.
+
+## Register
