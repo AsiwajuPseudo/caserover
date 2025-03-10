@@ -105,8 +105,11 @@ class Tools:
         for item in data:
             unique_styles.add((item['citation'],table,item['table_id'],item['file_id'],item['filename']))
         sources=[{'citation': citation, 'table': table, 'table_id': table_id, 'file_id': file_id, 'filename': filename} for citation, table, table_id, file_id, filename in unique_styles]
-        answer = self.gpt.json_gpt(messages, size)
-        return answer, sources
+        answ = self.gpt.json_gpt(messages, size)
+        answer=json.loads(answ)
+        answer['citations']=sources
+        answer1=json.dumps(answer)
+        return answer1, sources
 
     # tool for retrieving from table and from web
     def frag(self, table, prompt,history, k=3, size=500):

@@ -321,7 +321,7 @@ def run_playground():
       answer, sources = tools.rag(tool, prompt, history, 3, 4060)
   except Exception as e:
     print(e)
-    p={"answer":[{"type":"paragraph","data":"Error generating content, please try again. If the error persist create a new workspace."}],"sources":[]}
+    p={"answer":[{"type":"paragraph","data":"Error generating content, please try again. If the error persist create a new workspace."}],"sources":[], "citations":[]}
     answer=json.dumps(p)
     sources=[]
 
@@ -330,7 +330,7 @@ def run_playground():
   messages = database.messages(chat)
   chats = database.chats(user)
 
-  return {"messages": messages, "documents": sources, "chats": chats, "current": chat}
+  return {"messages": messages, "chats": chats, "current": chat}
 
 
 #upload files for GPT
