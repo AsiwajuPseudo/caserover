@@ -34,6 +34,15 @@ class Process:
             e.g. {'precedent':'late noting of appeals','desc':'The late noting of an appeal should be done in reasonable time such that....'}
         '''
 
+
+        self.act = '''
+        You are part of a legal citator system which is being used to analyze legislations and extract metadata.
+        Retrieve metadata from the following legislation and return in json format. The metadata should be returned in the json object
+        of: {'metadata':{'juris':jurisdiction of the legislation,'citation':appropriate citation of a legislation}}. Citation is a specific
+        identification of the legislation; for example:
+        'Electoral Act, Chapter 24:03', 'Elections Regulations of 2019, Electoral Act' etc.
+        '''
+
     # Method for generating an analysis of court rulings
     def court_proc(self,table, table_id, file_id, filename, document):
         text = ''
@@ -98,10 +107,64 @@ class Process:
             sections.append(current_section)
         return {'citation':title+', '+citation,'jurisdiction':juris,'sections':sections}
 
+    def sectioning_pdf(self, document):
+        #process doc
+        text = ''
+        for t in document:
+            text = text +'\n'+ t['text']
+        messages = [{'role': 'system', 'content': [{'type': 'text', 'text': self.act}]}]
+        messages.append({'role': 'user', 'content': [{'type': 'text', 'text': text}]})
+        try:
+            raw_json = self.gpt.json_gpt(messages)
+            content = json.loads(raw_json)
+            citation=content['metadata']['citation']
+            juris=content['metadata']['juris']
+            splitter = TokenTextSplitter(chunk_size=1500, chunk_overlap=200)
+            chunks=splitter.split_text(text)
+            sections = []
+            n=1
+            for chunk in chunks:
+                sections.append({'title':'Chunk number '+ str(n), 'content':[{'style':'p','ident':'0','text':chunk}]})
+                n=n+1
+
+            return {'citation':citation,'jurisdiction':juris,'sections':sections}
+        except Exception as e:
+            print(traceback.format_exc())
+            return {}
+
     # Method to process sections of a legislation
     def legislation_html(self, table, table_id, file_id, filename, document):
         try:
             legi=self.sectioning_html(document)
+            meta={'citation':legi['citation'],'table_id':table_id,'file_id':file_id,'filename':filename}
+            vector=Euclid()
+            new_sections=[]
+            for section in legi['sections']:
+                section_title=section['title']
+                temp=[]
+                for line in section['content']:
+                    temp.append(line['text'])
+                new_sections.append({'title':section_title,'lines':temp})
+            #end for
+            for section in new_sections:
+                sec_text=' '.join(section['lines'])
+                splitter = TokenTextSplitter(chunk_size=500, chunk_overlap=150)
+                chunks=splitter.split_text(sec_text)
+                for chunk in chunks:
+                    sec_embedd=self.gpt.embedd_text(chunk)
+                    vector.add(table,sec_text,meta,sec_embedd)
+
+            #return the document
+            return {'result': 'success', 'content': legi}
+        
+        except Exception as e:
+            print(traceback.format_exc())
+            return {'result': str(e), 'content': {}}
+
+    # Method to process sections of a legislation
+    def legislation_pdf(self, table, table_id, file_id, filename, document):
+        try:
+            legi=self.sectioning_pdf(document)
             meta={'citation':legi['citation'],'table_id':table_id,'file_id':file_id,'filename':filename}
             vector=Euclid()
             new_sections=[]

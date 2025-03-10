@@ -212,7 +212,8 @@ def admin_delete_user():
 def get_org_users():
     admin_id = request.args.get('admin_id')
     result = database.get_org_users(admin_id)
-    return result
+    results=[item for item in result if item['user_id']!=admin_id]
+    return results
     
 # Admin updates a user's status in their lawfirm
 @app.route('/admin_update_user_status', methods=['POST'])
@@ -580,9 +581,9 @@ def proc_file():
     if filename.lower().endswith('.htm') or filename.lower().endswith('.html'):
       document=collect.html_styles(file_path)
       run=proc.legislation_html(table, table_id, file_id, filename, document)
-    elif filename.lower().endswith('.docx'):
-      document=collect.docx_styles(file_path)
-      run=proc.legislation_docx(table, table_id, file_id, filename, document)
+    elif filename.lower().endswith('.pdf'):
+      document=collect.pdf_raw(file_path)
+      run=proc.legislation_pdf(table, table_id, file_id, filename, document)
   else:
     #other methods of processing documents
     run={'result':'method for processing does not exist','content':{}}
