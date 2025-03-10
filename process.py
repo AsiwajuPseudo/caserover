@@ -124,7 +124,7 @@ class Process:
             sections = []
             n=1
             for chunk in chunks:
-                sections.append({'title':'Chunk number '+ str(n), 'content':[{'style':'p','ident':'0','text':chunk}]})
+                sections.append({'title':'Chunk number '+ str(n), 'annotations':[], 'content':[{'style':'p','ident':'0','text':chunk}]})
                 n=n+1
 
             return {'citation':citation,'jurisdiction':juris,'sections':sections}
