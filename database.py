@@ -391,6 +391,13 @@ class Database:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                #check if email is valid
+                cursor.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+                email_user = cursor.fetchone()
+                if email_user:
+                    pass
+                else:
+                    return {"status": "Account does not exist"}
                 # Check if the email and password match
                 cursor.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
                 user = cursor.fetchone()
@@ -404,7 +411,7 @@ class Database:
                     else:
                         return {"status": "billing required"}
                 else:
-                    return {"status": "Invalid email or password"}
+                    return {"status": "Incorrect password"}
         except Exception as e:
             return {"status": "Error: " + str(e)}
 
