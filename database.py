@@ -392,7 +392,7 @@ class Database:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 #check if email is valid
-                cursor.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+                cursor.execute("SELECT * FROM users WHERE email=?", (email,))
                 email_user = cursor.fetchone()
                 if email_user:
                     pass
