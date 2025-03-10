@@ -330,7 +330,7 @@ class Database:
                 cursor.execute("SELECT * FROM users WHERE user_id=? AND isadmin='true'", (admin_id,))
                 admin = cursor.fetchone()
                 if not admin:
-                    return {"status": "Unauthorized access!"}
+                    return {"status": "Unauthorized access!", "users":[]}
                 
                 # Get admin's code
                 admin_code = admin[5]
