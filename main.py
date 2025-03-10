@@ -239,37 +239,6 @@ def admin_update_user_status():
 #------------------------------------------CORE METHODS---------------------------
 
 
-#run
-@app.route('/run', methods=['POST'])
-def run_model():
-  data = request.get_json()
-  tool=data.get('tool')
-  tools=Tools(collections)
-  if tool=="assistant":
-    prompt=data.get('prompt')
-    size=data.get('size')
-    answer=tools.assistant(prompt,size)
-  elif tool=="rag":
-    table=data.get('table')
-    prompt=data.get('prompt')
-    k=data.get('k')
-    size=data.get('size')
-    answer=tools.rag(table,prompt,k,size)
-  elif tool=="web":
-    phrase=data.get('phrase')
-    size=data.get('size')
-    answer=tools.web_search(phrase,size)
-  elif tool=="frag":
-    table=data.get('table')
-    prompt=data.get('prompt')
-    k=data.get('k')
-    size=data.get('size')
-    answer=tools.frag(table,prompt,k,size)
-  else:
-    answer={"answer":"Unknown model"}
-
-  return answer
-
 #add a chat
 @app.route('/add_chat', methods=['POST'])
 def add_chat():
@@ -289,18 +258,6 @@ def deli_chat():
   chats=database.chats(user)
 
   return {"status":deli,"chats":chats}
-
-#retrieve all chats belonging to a user
-@app.route('/messagesanduser', methods=['GET'])
-def collect_messages_and_user():
-  chat=request.args.get('chat_id')
-  user=request.args.get('user_id')
-  messages=database.messages(chat)
-  path="../files/uploads/"+chat+"/"
-  nodes=generate_tree(path)
-  profile=database.user_profile(user)
-
-  return {"messages":messages,"nodes":nodes,"user":profile}
 
 #retrieve all chats belonging to a user
 @app.route('/chats', methods=['GET'])
@@ -429,49 +386,9 @@ def get_source():
       return "File not found"
 
 
-#show cloud tree
-@app.route('/cloud_tree', methods=['GET'])
-def cloud_tree():
-  chat=request.args.get('chat_id')
-  path="../files/uploads/"+chat+"/"
-  nodes=generate_tree(path)
-
-  return {"nodes":nodes}
-
-#delete file from cloud
-@app.route('/delete_cloud', methods=['GET'])
-def delete_cloud_tree():
-  chat=request.args.get('chat_id')
-  file=request.args.get('name')
-  path="../files/uploads/"+chat+"/"
-  file_path=path+file
-  os.remove(file_path)
-  if file.endswith('.pdf'):
-    dir_name=file.replace('.','-')
-    new_path="../files/pdf_images/"+chat+"/"
-    n=delete_dir(new_path+dir_name+'/')
-  nodes=generate_tree(path)
-
-  return {"nodes":nodes}
-
 @app.route('/get_pdf')
 def get_pdf():
     return send_file('path/to/your/pdf/file.pdf', as_attachment=False)
-
-#view directories
-@app.route('/dir', methods=['GET'])
-def dir():
-  content=get_dir('../files/')
-
-  return content
-
-#view directories
-@app.route('/t_del', methods=['GET'])
-def delete_database_table():
-  table=request.args.get('table')
-  deli=database.delete_table(table)
-
-  return deli
 
 
 #--------------------------------------------------EDITOR MODE METHODS

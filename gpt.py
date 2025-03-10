@@ -43,30 +43,3 @@ class GPT:
     openai.api_key=self.key
     res = openai.chat.completions.create(model="gpt-4o",messages=message,temperature=0.5,max_tokens=tokens)
     return res.choices[0].message
-
-  def file_processor(self, instruction, text):
-    #method for processing files using code interpreter
-    openai.api_key=self.key
-    assistant = openai.beta.assistants.create(
-      instructions=instruction,
-      model="gpt-4o",
-      tools=[{"type": "code_interpreter"}],
-    )
-
-    thread = openai.beta.threads.create()
-    message = openai.beta.threads.messages.create(
-      thread_id=thread.id,
-      role="user",
-      content=text
-    )
-    run = openai.beta.threads.runs.create_and_poll(
-      thread_id=thread.id,
-      assistant_id=assistant.id,
-      instructions=instruction
-    )
-
-    if run.status == 'completed':
-      messages = openai.beta.threads.messages.list(thread_id=thread.id)
-      print(messages)
-    else:
-      print(run.status)
