@@ -212,7 +212,7 @@ def admin_delete_user():
 def get_org_users():
     admin_id = request.args.get('admin_id')
     result = database.get_org_users(admin_id)
-    results=[item for item in result if item['user_id']!=admin_id]
+    results=[item for item in result['users'] if item['user_id']!=admin_id]
     return results
     
 # Admin updates a user's status in their lawfirm
