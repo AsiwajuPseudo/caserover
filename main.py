@@ -292,8 +292,7 @@ def run_playground():
   tools = Tools(collections)
   # Check if there is a valid chat or it's a new one
   if chat == '' or chat is None:
-    i = str(random.randint(1000, 9999))
-    name = "space_" + i
+    name = tools.naming(prompt)
     add = database.add_chat(user, name)
     chat = add['chat']
   # Execute
