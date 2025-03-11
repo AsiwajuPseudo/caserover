@@ -47,6 +47,11 @@ class Tools:
         Format of sources array value is {'name':name of source,'access':url or name of document used as source}.
         Do not put an new lines (\n) or tabs (\t) or anything of that nature in your response and your answer should not be of more than 4000 tokens.
         """
+        self.namer="""
+        You are part of an AI-powered legal research tool, provide a name for the new chat which a user created on the tool. The name
+        should be short (not more than 7 words) and should be based on the user's question. Return a json format response with structure
+        {'name':name of chat}.
+        """
         self.tools = [
             {"tool": "assistant",
              "inputs": [{"name": "prompt", "type": "text"}, {"name": "size", "type": "number"}],
@@ -79,6 +84,15 @@ class Tools:
                 return tool
 
         return {"tool": "none", "inputs": "none", "outputs": "none"}
+
+    # a tool for generating a chat name
+    def naming(self, prompt):
+        messages = [{"role": "system", "content": self.namer}]
+        messages.append({"role": "user", "content": prompt})
+        answ = self.gpt.json_gpt(messages, size)
+        answer=json.loads(answ)
+
+        return answer['name']
 
     # a tool for generating text
     def assistant(self, prompt, size,history):
