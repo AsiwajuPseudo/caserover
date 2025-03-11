@@ -89,7 +89,7 @@ class Tools:
     def naming(self, prompt):
         messages = [{"role": "system", "content": self.namer}]
         messages.append({"role": "user", "content": prompt})
-        answ = self.gpt.json_gpt(messages, size)
+        answ = self.gpt.json_gpt(messages, 20)
         answer=json.loads(answ)
 
         return answer['name']
