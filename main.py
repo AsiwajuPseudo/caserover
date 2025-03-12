@@ -258,7 +258,7 @@ def deli_chat():
   deli=database.deli_chat(chat)
   chats=database.chats(user)
 
-  return {"status":deli,"chats":chats}
+  return {"status":deli["status"],"chats":chats}
 
 #retrieve all chats belonging to a user
 @app.route('/chats', methods=['GET'])
