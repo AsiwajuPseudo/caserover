@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Case Rover is an AI-powered legal research tool for lawyers in Zimbabwe. Launched in 2024, the platform has transformed the way lawyers handle their legal research process.
+Case Rover is an AI-powered legal research tool for lawyers in Zimbabwe. Launched in 2024, the platform has transformed the way lawyers handle their legal research process. We are working to improve the platform to cover other things lawyers do.
 
 This repository is for development purposes only. Do not use the code for anything else other than that.
 
