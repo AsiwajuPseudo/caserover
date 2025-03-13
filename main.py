@@ -630,6 +630,7 @@ def open_file():
 #load all processed files
 @app.route('/load_processed', methods=['GET'])
 def load_all_processed_files():
+  table1=request.args.get('table')
   #check if files object exist
   tables=File_Control.open('../tables/root.pkl')
   if File_Control.check_path('../tables/files.pkl'):
@@ -649,8 +650,10 @@ def load_all_processed_files():
       table=file['table']
       cont=File_Control.open('../data/'+table+'-'+table_id+'/'+file_id+'-'+filename+'.pkl')
       processed_files.append({'filename':filename, 'file_id': file_id, 'table_id': table_id, 'table':table, 'citation':cont['citation']})
-  processed_files=processed_files[-20:]
-  return {'files':processed_files,'tables':tables}
+  #load files from the provided table
+  processed_files1=[item for item in processed_files if item['table']==table1]
+  all_files=processed_files1[-20:]
+  return {'files':all_files,'tables':tables}
 
 
 #save a file for viewing later
@@ -765,10 +768,9 @@ def raw_search():
   return {'documents':r}
 
 #do a raw search of the euclid database
-@app.route('/typing_search', methods=['POST'])
+@app.route('/typing_search', methods=['GET'])
 def typing_search():
-  data = request.get_json()
-  query=data.get('query')
+  query=request.args.get('query')
   files=File_Control.open('../tables/files.pkl')
   processed_files=[]
   for file in files:
