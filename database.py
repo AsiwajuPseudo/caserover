@@ -19,6 +19,8 @@ class Database:
                               (chat_id TEXT,user_id TEXT,user TEXT,system TEXT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS media
                               (chat_id TEXT,user_id TEXT,file TEXT,content TEXT)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS saved_docs
+                              (user_id TEXT, file_id TEXT, filename TEXT, table_id TEXT, table_ TEXT, citation TEXT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS superusers
                               (admin_id TEXT, name TEXT, email TEXT, password TEXT, created_at TEXT)''')
 
@@ -734,4 +736,50 @@ class Database:
                     return {"status":"none"}
         except Exception as e:
             return {"status": "Error: " + str(e)}
+
+
+
+
+
+    #--------------------------------------SAVING DOCS----------------------
+
+    # Save a document
+    def save_doc(self, user_id, file_id, filename, table_id, table, citation):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("INSERT INTO saved_docs (user_id, file_id, filename, table_id, table_, citation) VALUES (?,?,?,?,?,?)",
+                                   (user_id, file_id, filename, table_id, table, citation))
+                conn.commit()
+                return {"status": "success"}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+
+    #load saved files
+    def load_saved(self, user_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM saved_docs WHERE user_id=?", (user_id,))
+                docs = cursor.fetchall()
+                files=[]
+                for doc in docs:
+                    files.append({'file_id':doc[1],'filename':doc[2],'table_id':doc[3],'table':doc[4],'citation':doc[5]})
+
+                return {'files':files}
+        except Exception as e:
+            print(str(e))
+            return {"files":[]}
+
+    #delete a saved document
+    def deli_saved(self, user_id, file_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM saved_docs WHERE user_id=? AND file_id=?", (user_id,file_id))
+                conn.commit()
+                return {"status":"success"}
+        except Exception as e:
+            return {"status":"Error: "+str(e)}
 

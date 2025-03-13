@@ -652,6 +652,43 @@ def load_all_processed_files():
   processed_files=processed_files[-20:]
   return {'files':processed_files,'tables':tables}
 
+
+#save a file for viewing later
+@app.route('/save_file', methods=['POST'])
+def save_file_as_bookmark():
+  data = request.get_json()
+  user_id=data.get('user_id')
+  file_id=data.get('file_id')
+  filename=data.get('filename')
+  table_id=data.get('table_id')
+  table=data.get('table')
+  file=File_Control.open('../data/'+table+'-'+table_id+'/'+file_id+'-'+filename+'.pkl')
+  tables=File_Control.open('../tables/root.pkl')
+  tab=next(item for item in tables if item['id'] == table_id)
+  cite=file['citation']
+  save=database.save_doc(user_id, file_id, filename, table_id, table, cite)
+
+  return save
+
+
+#save a file for viewing later
+@app.route('/load_saved_files', methods=['GET'])
+def load_saved_files():
+  user_id=request.args.get('user_id')
+  saved=database.load_saved(user_id)
+
+  return saved
+
+#delete a file saved for viewing later
+@app.route('/delete_saved_file', methods=['POST'])
+def delete_saved_file():
+  data = request.get_json()
+  user_id=data.get('user_id')
+  file_id=data.get('file_id')
+  deli=database.deli_saved(user_id, file_id)
+
+  return deli
+
 #section processing
 @app.route('/section_proc', methods=['GET'])
 def process_section():
