@@ -620,7 +620,7 @@ def open_file():
   file_path='../temp/'+table+'-'+table_id+'/'+file_id+'-'+filename
   collect=Collector()
   if filename.lower().endswith('.pdf'):
-    document=collect.pdf_lines(file_path)
+    document=collect.pdf_raw(file_path)
   elif filename.lower().endswith('.docx'):
     document=collect.docx_styles(file_path)
   elif filename.lower().endswith('.htm') or filename.lower().endswith('.html'):
