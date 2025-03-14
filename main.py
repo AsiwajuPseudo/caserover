@@ -579,13 +579,13 @@ def proc_file():
   elif tab['type']=='legislation':
     if filename.lower().endswith('.htm') or filename.lower().endswith('.html'):
       document=collect.html_styles(file_path)
-      run=proc.legislation_html(table, table_id, file_id, filename, document)
+      run=proc.legislation(table, table_id, file_id, filename, document)
     elif filename.lower().endswith('.pdf'):
       document=collect.pdf_raw(file_path)
-      run=proc.legislation_pdf(table, table_id, file_id, filename, document)
+      run=proc.legislation(table, table_id, file_id, filename, document)
     elif filename.lower().endswith('.docx'):
       document=collect.docx_styles(file_path)
-      run=proc.legislation_pdf(table, table_id, file_id, filename, document)
+      run=proc.legislation(table, table_id, file_id, filename, document)
   else:
     #other methods of processing documents
     run={'result':'method for processing does not exist','content':{}}
@@ -626,6 +626,7 @@ def open_file():
   elif filename.lower().endswith('.htm') or filename.lower().endswith('.html'):
     document=collect.html_styles(file_path)
   file['raw']=document
+  file['sections']=[]
   #print(file)
 
   return {'file':file,'type':tab['type'],'graph':n}
