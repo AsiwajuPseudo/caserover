@@ -172,8 +172,19 @@ class Collector:
             ident=0
             if para.paragraph_format.left_indent is not None:
                 ident=para.paragraph_format.left_indent.inches
+            style=para.style.name
+            if para.style.name=='Heading 1':
+                style='h1'
+            elif para.style.name=='Heading 2':
+                style='h2'
+            elif para.style.name=='Heading 3':
+                style='h3'
+            elif para.style.name=='Heading 4':
+                style='h4'
+            else:
+                pass
             paragraph_data = {
-                'style': para.style.name,
+                'style': style,
                 'text': para.text,
                 'ident':ident
             }
