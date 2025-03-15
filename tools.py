@@ -101,9 +101,11 @@ class Tools:
             messages.append({"role": "user", "content": message['user']})
             messages.append({"role": "assistant", "content": str(message['system'])})
         messages.append({"role": "user", "content": prompt})
-        answer = self.gpt.json_gpt(messages, size)
-
-        return answer, []
+        answ = self.gpt.json_gpt(messages, size)
+        answer=json.loads(answ)
+        answer['citations']=[]
+        answer1=json.dumps(answer)
+        return answer1, []
 
     # tool for retrieving from table and answer
     def rag(self, table, prompt, history, k=3, size=500):
