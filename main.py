@@ -386,9 +386,17 @@ def get_source():
       return "File not found"
 
 
-@app.route('/get_pdf')
+@app.route('/get_file', methods=['GET'])
 def get_pdf():
-    return send_file('path/to/your/pdf/file.pdf', as_attachment=False)
+  file_id=request.args.get('file_id')
+  filename=request.args.get('filename')
+  table_id=request.args.get('table_id')
+  table=request.args.get('table')
+  file_path='../temp/'+table+'-'+table_id+'/'+file_id+'-'+filename
+  if File_Control.check_path(file_path):
+    return send_file(file_path, as_attachment=False)
+  else:
+    return jsonify({'error': 'Document does not exist'}), 400
 
 
 #--------------------------------------------------EDITOR MODE METHODS
