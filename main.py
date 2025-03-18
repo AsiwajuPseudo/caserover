@@ -156,9 +156,10 @@ def subscribe_user():
 @app.route('/subscribe_org', methods=['POST'])
 def subscribe_orginisation():
   data = request.get_json()
+  admin_id=data.get('admin_id')
   code = data.get('code')
   next_date=data.get('next_date')
-  update=database.subscribe_org(code,next_date)
+  update=database.subscribe_org(admin_id, code,next_date)
   users=database.profiles()
   return {'status': update,'users':users}
 
