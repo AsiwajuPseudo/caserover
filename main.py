@@ -146,8 +146,9 @@ def view_all_profiles():
 def subscribe_user():
   data = request.get_json()
   user_id=data.get('user_id')
+  admin_id=data.get('admin_id')
   next_date=data.get('next_date')
-  update=database.subscribe_user(user_id,next_date)
+  update=database.subscribe_user(admin_id, user_id, next_date)
   users=database.profiles()
   return {'status':update,'users':users}
 
