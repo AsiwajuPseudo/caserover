@@ -112,6 +112,8 @@ class Tools:
         data = self.euclid.search(table, prompt, k)
         temp=[{'citation':item['citation'],'content':item['document']} for item in data]
         context = "Data: " + str(temp) + "\n Prompt:" + prompt
+        if document!='':
+            context="My Document(s): "+document+'  \n'+ context
         messages = [{"role": "system", "content": self.system}]
         for message in history:
             messages.append({"role": "user", "content": message['user']})
