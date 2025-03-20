@@ -108,7 +108,7 @@ class Tools:
         return answer1, []
 
     # tool for retrieving from table and answer
-    def rag(self, table, prompt, history, k=3, size=500):
+    def rag(self, table, prompt, document, history, k=3, size=500):
         data = self.euclid.search(table, prompt, k)
         temp=[{'citation':item['citation'],'content':item['document']} for item in data]
         context = "Data: " + str(temp) + "\n Prompt:" + prompt
