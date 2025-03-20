@@ -8,11 +8,11 @@ class Graph:
         # Initialize the NetworkX graph and a list for document nodes
         self.nodes = []
         if File_Control.check_path('../graph/') and File_Control.check_path('../graph/graph.pkl'):
-        	self.graph=File_Control.open('../graph/graph.pkl')
+            self.graph=File_Control.open('../graph/graph.pkl')
         else:
-        	self.graph = nx.DiGraph()
-        	File_Control.create_path('../graph/')
-        	File_Control.save('../graph/graph.pkl',self.graph)
+            self.graph = nx.DiGraph()
+            File_Control.create_path('../graph/')
+            File_Control.save('../graph/graph.pkl',self.graph)
 
     def create_graph(self, documents):
         # Extend nodes list and add nodes to the graph

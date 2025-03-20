@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template,send_file, jsonify, make_response
-from datetime import datetime
+from datetime import datetime, timedelta
 from fuzzywuzzy import fuzz, process
 import requests
 import json
@@ -8,6 +8,16 @@ import csv
 import io
 import os
 from flask_cors import CORS
+import jwt
+import functools
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import logging
+
+
+load_dotenv()
 
 #local libraries
 from database import Database
@@ -24,8 +34,91 @@ collections=Euclid()
 app = Flask(__name__)
 CORS(app)
 
+logging.basicConfig(level=logging.DEBUG)
 
+# Security configuration
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') # Get from environment variable
+JWT_EXPIRATION_DELTA = timedelta (days = 30)
+UPLOAD_FOLDER = '../files/uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt', 'htm', 'html', 'csv'}
 
+# Setup rate limiting to prevent brute force attacks.
+limiter = Limiter(
+  app=app,
+  key_func=get_remote_address,
+  default_limits=["200  per day", "50 per hour"]
+)
+
+#----------------------------------------------------------------------------------------------------------------
+# AUTHENTICATION HELPERS
+
+def generate_token(user_id, role='user'):
+  ''''Generate a JWT token for authenticated user'''
+  
+  if not user_id:
+    app.logger.error("generate_token() called with None user_id")
+    return None
+  payload = {
+    'user_id': user_id,
+    'role': role,
+    'exp': datetime.utcnow() + JWT_EXPIRATION_DELTA,
+    'iat': datetime.utcnow()   
+  }
+  app.logger.debug("Generated JWT Payload: %s", payload)
+  return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+
+def token_required(f):
+  '''Decorator for endpoints that require authentication'''
+  @functools.wraps(f)
+  def decorated(*args, **kwargs):
+    token = request.cookies.get('auth_token') # Read token frim HTTP-only cookie
+      
+    if not token:
+      return jsonify({'error': 'Authentication required', 'code': 'AUTH_REQUIRED'}), 401
+    
+    try:
+      # Decode and verify the token
+      data = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+      current_user = data['user_id']
+      app.logger.debug("Decoded JWT Data: %s", data)
+      
+      # Add user info to kwargs so the route function can access it
+      kwargs['current_user_id'] = current_user
+      kwargs['user_role'] = data.get('role', 'user')
+      
+    except jwt.ExpiredSignatureError:
+      return jsonify({'error': 'Authentication token has expired', 'code': 'TOKEN_EXPIRED' }), 401
+    except jwt.InvalidTokenError:
+      return jsonify({'error': 'Invalid authentication token', 'code': 'INVALID_TOKEN'}), 401
+    
+    return f(*args, **kwargs)
+  return decorated
+
+def admin_required(f):
+  '''Decorator for endpoints that require admin privileges'''
+  @functools.wraps(f)
+  @token_required
+  def decorated(*args, **kwargs):
+    user_role = kwargs.get('user_role')
+    
+    if user_role != 'admin' and user_role != 'superuser':
+      return jsonify({'error': 'Admin privileges required', 'code': 'ADMIN_REQUIRED'}), 403
+    
+    return f(*args, **kwargs)
+  return decorated
+
+def superuser_required(f):
+  '''Decorator for endpoints that require superuser privileges'''
+  @functools.wraps(f)
+  @token_required
+  def decorated(*args, **kwargs):
+    user_role = kwargs.get('user_role')
+    
+    if user_role != 'superuser':
+      return jsonify({'error': 'Superuser privileges required', 'code': 'SUPERUSER_REQUIRED'}), 403
+    
+    return f(*args, **kwargs)
+  return decorated
 
 #--------------------------------------------------------------------------------------------------------------
 # AUTH AND ACCOUNT MANAGEMENT
@@ -37,126 +130,271 @@ def ping():
 
 # Login to account
 @app.route('/login', methods=['POST'])
+@limiter.limit("10 per minute") # Rate limit to prevent brute force attacks
 def login():
     data = request.get_json()
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
     email = data.get('email')
     password = data.get('password')
+    
+    if not email or not password:
+      return jsonify({'error': 'Missing email or password'}), 400
+    
     log = database.login(email, password)
+    
+    if log.get('status') == 'success':
+      # Generate JWT token
+      user_id = log.get('user')
+      role = 'admin' if log.get('isadmin') == 'true' else 'user'
+      token = generate_token(user_id, role)
+      
+      # Set token as HTTP-only cookie
+      response = jsonify({'status': 'success', 'user_id': user_id})
+      # Set cookie domain to caserover.com
+      # response.set_cookie('auth_token', token, domain='caserover.com', httponly=True, secure=True, samesite='Strict') # Change secure to True before deployment
+      # return response
+      
+      response.set_cookie('auth_token', token, httponly=True, secure=True, samesite='Strict') # Change secure to True before deployment
+      return response
+    
     return log
+  
+@app.route('/logout', methods=['POST'])
+@token_required
+def logout(current_user_id, user_role):
+  '''Logs user out by clearing the auth cookie'''
+  response = jsonify({'status': 'success', 'message': 'Logged out'})
+  response.set_cookie('auth_token', '', expires=0, httponly=True, secure=True, samesite='Strict' )
+  return response
 
 #Editor login to account
 @app.route('/editorlogin', methods=['POST'])
+@limiter.limit("10 per minute")
 def editor_login():
   data = request.get_json()
+  if not data:
+    return jsonify({'error': 'No data provided'}), 400
   email=data.get('email')
   password=data.get('password')
+  
+  if not email or not password:
+    return jsonify({'error': 'Missing email or password'}), 400
+  
   log=database.login(email,password)
+  
+  if log.get('status') == 'success':
+    # Generate JWT token
+    user_id = log.get('user')
+    role = 'editor'
+    token = generate_token(user_id, role)
+    
+    log['token'] = token
+  
   return log
 
 # Superuser login to account
 @app.route('/superuserlogin', methods=['POST'])
+@limiter.limit("5 per minute")
 def superuser_login():
     data = request.get_json()
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
     email = data.get('email')
     password = data.get('password')
+    if not email or not password:
+      return jsonify({'error': 'Missing email or password'}), 400
     result = database.superuser_login(email, password)
+    
+    app.logger.debug(f"Superuser login response: {result}")
+    
+    if result.get('status') == 'success':
+      # Generate JWT token with superuser role
+      admin_id = result.get('admin')
+      if not admin_id:
+        app.logger.error("Superuser ID is missing from login response")
+        return jsonify({'error': 'Login failed, no admin ID found'}), 500
+      token = generate_token(admin_id, 'superuser')
+      
+     # Set token as HTTP-only cookie
+      response = jsonify({'status': 'success'})
+      response.set_cookie('auth_token', token, httponly=True, secure=True, samesite='Strict')
+      return response
+      
     return result
 
-# Add new superuser
+# Add new superuser (requires superuser privileges)
 @app.route('/add_superuser', methods=['POST'])
-def add_superuser():
+@superuser_required
+def add_superuser(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
+    if not all([name, email, password]):
+      return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Now use the authenticated user ID instead of trusting the request
+    admin_id = current_user_id
+    
     result = database.add_superuser(admin_id, name, email, password)
     return result
 
 # Change superuser password
 @app.route('/change_superuser_password', methods=['POST'])
-def change_superuser_password():
+@superuser_required
+def change_superuser_password(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
     old_password = data.get('old_password')
     new_password = data.get('new_password')
+    
+    if not old_password or not new_password:
+      return jsonify({'error': 'Missing required fields'}), 400
+    
+    admin_id = current_user_id
+    
     result = database.change_superuser_password(admin_id, old_password, new_password)
     return result
 
-# Get all superusers
+# Get all superusers (now requires superuser privileges)
 @app.route('/get_superusers', methods=['GET'])
-def get_superusers():
-    admin_id = request.args.get('admin_id')
+@superuser_required
+def get_superusers(current_user_id, user_role):
+    admin_id = current_user_id # Authenticated user ID
     result = database.get_superusers(admin_id)
     return result
 
 # Delete a superuser
-@app.route('/delete_superuser', methods=['POST'])
-def delete_superuser():
+@app.route('/delete_superuser', methods=['DELETE'])
+@superuser_required
+def delete_superuser(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
-    admin_id_to_delete_id = data.get('admin_id_to_delete')
-    result = database.delete_superuser(admin_id, admin_id_to_delete_id)
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
+    admin_id_to_delete = data.get('admin_id_to_delete')
+    if not admin_id_to_delete:
+      return jsonify({'error': 'Missing required fields'}), 400
+    
+    admin_id = current_user_id
+    # Prevent self-deletion
+    if admin_id == admin_id_to_delete:
+      return jsonify({'error': 'Cannot delete your own superuser account'}), 400
+    
+    result = database.delete_superuser(admin_id, admin_id_to_delete)
     return result
 
 # Register a new account
 @app.route('/register', methods=['POST'])
+@limiter.limit("5 per hour")
 def register():
     data = request.get_json()
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
     name = data.get('name')
     email = data.get('email')
     user_type = data.get('user_type')
     code = "00000"
     password = data.get('password')
     phone = data.get('phone')
+    if not all([name, email, password, user_type]):
+      return jsonify({'error': 'Missing required fields'}), 400
+    
     lawfirm_name="individual"
     isadmin = 'false'
     if user_type=="org":
         lawfirm_name = data.get('lawfirm_name')
         isadmin ='true'
     result = database.add_user(name, email, phone, user_type, code, lawfirm_name, password, isadmin)
+    
+    if result.get('status') == 'success':
+      user_id = result.get('user')
+      token = generate_token(user_id, 'admin' if isadmin == 'true' else 'user')
+      
+      response = jsonify({'status': 'success', 'user_id': user_id})
+      response.set_cookie(
+            'auth_token', token, httponly=True, secure=False, samesite='Strict'  # Secure=False for local testing
+      )
+      return response
+    
     return result
 
 
 # Change Password
 @app.route('/password', methods=['POST'])
-def change_password():
+@token_required
+def change_password(current_user_id, user_role):
   data = request.get_json()
+  if not data:
+    return jsonify({'error': 'No data provided'}), 400
+  
   old_password = data.get('old_password')
   new_password = data.get('new_password')
-  user_id = data.get('user_id')
+  
+  if not old_password or not new_password:
+    return jsonify({'error': 'Missing required fields'}), 400
+  
+  user_id = current_user_id
   passwd = database.change_password(user_id, old_password, new_password)
   return passwd
 
 #view user profile
 @app.route('/user_profile', methods=['GET'])
-def view_user_profile():
-  user_id = request.args.get('user_id')
-  profile = database.user_profile(user_id)
-  return profile
+@token_required
+def view_user_profile(current_user_id, user_role):
+    print(f"Fetching profile for user: {current_user_id}")
+  # Admins can view other profiles by passing user_id in query
+    requested_user_id = request.args.get('user_id', current_user_id)
+  
+  # Regular users can only view their own profile
+    if user_role == 'user' and requested_user_id != current_user_id:
+      return jsonify({'error': "Unauthorized to view other users' profile"}), 403
+
+    profile = database.user_profile(requested_user_id)
+    return profile
 
 #view all users profile
 @app.route('/allusers', methods=['GET'])
-def view_all_profiles():
-  users = database.profiles()
-  return {'users': users}
+@superuser_required
+def view_all_profiles(current_user_id, user_role):
+    users = database.profiles()
+    return {'status': 'success', 'users': users}
 
 # Subscribe a user
 @app.route('/subscribe_user', methods=['POST'])
-def subscribe_user():
+@superuser_required # Require superuser privileges
+def subscribe_user(current_user_id, user_role):
   data = request.get_json()
+  if not data:
+    return jsonify({'error': 'No data provided'}), 400
   user_id=data.get('user_id')
-  admin_id=data.get('admin_id')
   next_date=data.get('next_date')
+  
+  if not user_id or not next_date:
+    return jsonify({'error': 'Missing required fields'}), 400
+  
+  admin_id = current_user_id
+  
   update=database.subscribe_user(admin_id, user_id, next_date)
   users=database.profiles()
   return {'status':update,'users':users}
 
 # Subscribe an organisation
 @app.route('/subscribe_org', methods=['POST'])
-def subscribe_orginisation():
+@superuser_required # Requires superuser privileges
+def subscribe_orginisation(current_user_id, user_role):
   data = request.get_json()
-  admin_id=data.get('admin_id')
+  if not data:
+    return jsonify({'error': 'No data provided'}), 400
+  admin_id= current_user_id
   code = data.get('code')
   next_date=data.get('next_date')
   update=database.subscribe_org(admin_id, code,next_date)
@@ -164,12 +402,19 @@ def subscribe_orginisation():
   return {'status': update,'users':users}
 
 # Delete a user profile
-@app.route('/delete_user', methods=['GET'])
-def delete_profile():
-  user_id=request.args.get('user_id')
-  op = database.delete_user(user_id)
-  users=database.profiles()
-  return {'status': op, 'users':users}
+@app.route('/delete_user', methods=['DELETE'])
+@admin_required
+def delete_profile(current_user_id, user_role):
+    user_id=request.args.get('user_id')
+    if not user_id:
+      return jsonify({'error': 'Missing user_id parameter'}), 400
+  
+    if user_id == current_user_id:
+      return jsonify({'error': 'Cannot delete your own profile'}), 400
+  
+    op = database.delete_user(user_id)
+    users=database.profiles()
+    return {'status': op, 'users':users}
 
 #---------------------------------------------------------------------------------------------------------------
 
@@ -177,13 +422,20 @@ def delete_profile():
 
 # Admin adds a new user to their lawfirm
 @app.route('/admin_add_user', methods=['POST'])
-def admin_add_user():
+@admin_required
+def admin_add_user(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
+    admin_id = current_user_id
     name = data.get('name')
     email = data.get('email')
     phone = data.get('phone')
     password = data.get('password')
+    
+    if not all([name, email, password]):
+      return jsonify({'error': 'Missing required fields'}), 400
     
     result = database.admin_add_user(admin_id, name, email, phone, password)
     
@@ -195,11 +447,21 @@ def admin_add_user():
         return result
     
 # Admin deletes a user from their lawfirm
-@app.route('/admin_delete_user', methods=['POST'])
-def admin_delete_user():
+@app.route('/admin_delete_user', methods=['DELETE'])
+@admin_required
+def admin_delete_user(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
+    admin_id = current_user_id
     user_id_to_delete = data.get('user_id')
+    
+    if not user_id_to_delete:
+      return jsonify({'error': 'Missing user id field'}), 400
+    
+    if admin_id == user_id_to_delete:
+      return jsonify({'error': 'Cannot delete your own account'}), 400
     
     delete = database.admin_delete_user(admin_id, user_id_to_delete)
     if delete.get('status') == 'success':
@@ -211,19 +473,28 @@ def admin_delete_user():
     
 # Admin views all users in their lawfirm
 @app.route('/org_users', methods=['GET'])
-def get_org_users():
-    admin_id = request.args.get('admin_id')
+@admin_required
+def get_org_users(current_user_id, user_role):
+    admin_id = current_user_id
     result = database.get_org_users(admin_id)
     results=[item for item in result['users'] if item['user_id']!=admin_id]
     return results
     
 # Admin updates a user's status in their lawfirm
-@app.route('/admin_update_user_status', methods=['POST'])
-def admin_update_user_status():
+@app.route('/admin_update_user_status', methods=['PUT'])
+@admin_required
+def admin_update_user_status(current_user_id, user_role):
     data = request.get_json()
-    admin_id = data.get('admin_id')
+    if not data:
+      return jsonify({'error': 'No data provided'}), 400
+    
+    admin_id = current_user_id
+    
     user_id = data.get('user_id')
     new_status = data.get('status')
+    
+    if not user_id or new_status is None:
+      return jsonify({'error': 'Missing required fields'}), 400
     
     update = database.admin_update_user_status(admin_id, user_id, new_status)
     

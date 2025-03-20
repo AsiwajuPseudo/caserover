@@ -393,6 +393,7 @@ class Database:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                # hashed_password = self._hash_password(password)
                 #check if email is valid
                 cursor.execute("SELECT * FROM users WHERE email=?", (email,))
                 email_user = cursor.fetchone()
@@ -482,6 +483,7 @@ class Database:
             return {"status": "Error: " + str(e)}
 
     def user_profile(self, user_id):
+        print(f"Fetching profile for user_id: {user_id}")
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
