@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template,send_file, jsonify, make_response
 from datetime import datetime
 from fuzzywuzzy import fuzz, process
+import traceback
 import requests
 import json
 import random
@@ -17,6 +18,7 @@ from process import Process
 from euclid import Euclid
 from graph import Graph
 from tools import Tools
+from rag import RAG
 
 database=Database()
 collections=Euclid()
@@ -292,6 +294,7 @@ def run_playground():
   prompt = data.get('prompt')
   tool = data.get('tool')
   tools = Tools(collections)
+  rag= RAG(collections)
   # Check if there is a valid chat or it's a new one
   if chat == '' or chat is None:
     name = tools.naming(prompt)
@@ -299,35 +302,26 @@ def run_playground():
     chat = add['chat']
   # Execute
   try:
-    if tool == "assistant":
-      history = database.messages(chat)
-      answer, sources = tools.assistant(prompt, 4060, history)
-    elif tool == "documents":
-      # List all files from the directory
-      history = database.messages(chat)
-      files = os.listdir('../files/uploads/' + chat + '/')
-      text = ""
-      for file in files:
-        t = File()
-        data = {"document_name": file, "content": t.download('../files/uploads/' + chat + '/' + file)}
-        text = text + str(data)
-      # Check if there was a document
-      if text == "":
-        return "Please upload a document to be able to use this tool", []
-      # Generate answer if document is available
-      answer = tools.extracter(prompt, 4060, text, history)
-      sources = files
-    else:
-      document=''
-      if 'document' in data:
-        document=data.get('document')
-      history = database.messages(chat)
-      answer, sources = tools.rag(tool, prompt, document, history, 3, 4060)
+    document=''
+    if 'document' in data:
+      document=data.get('document')
+    history = database.messages(chat)
+    answer, sources = rag.single_step(tool, prompt, history, 3, 2)
   except Exception as e:
-    print(e)
+    traceback.print_exc()
     p={"answer":[{"type":"paragraph","data":"Error generating content, please try again. If the error persist create a new workspace."}],"sources":[], "citations":[]}
     answer=json.dumps(p)
     sources=[]
+
+  # Add answer to database
+  add = database.add_message(chat, user, str(answer), prompt)
+  messages = database.messages(chat)
+  chats = database.chats(user)
+
+  return {"messages": messages, "chats": chats, "current": chat}
+
+
+
 
   # Add answer to database
   add = database.add_message(chat, user, str(answer), prompt)
