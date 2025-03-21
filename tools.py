@@ -52,38 +52,6 @@ class Tools:
         should be short (not more than 7 words) and should be based on the user's question. Return a json format response with structure
         {'name':name of chat}.
         """
-        self.tools = [
-            {"tool": "assistant",
-             "inputs": [{"name": "prompt", "type": "text"}, {"name": "size", "type": "number"}],
-             "outputs": [{"name": "answer", "type": "text"}]
-             },
-            {"tool": "rag",
-             "inputs": [{"name": "table", "type": "text"}, {"name": "prompt", "type": "text"},
-                        {"name": "k", "type": "number"}, {"name": "size", "type": "number"}],
-             "outputs": [{"name": "answer", "type": "text"}]
-             },
-            {"tool": "web",
-             "inputs": [{"name": "phrase", "type": "text"}, {"name": "size", "type": "number"}],
-             "outputs": [{"name": "answer", "type": "text"}]
-             },
-            {"tool": "frag",
-             "inputs": [{"name": "table", "type": "text"}, {"name": "prompt", "type": "text"},
-                        {"name": "k", "type": "number"}, {"name": "size", "type": "number"}],
-             "outputs": [{"name": "answer", "type": "text"}]
-             },
-            {"tool": "extracter",
-             "inputs": [{"name": "phrase", "type": "text"}, {"name": "size", "type": "number"},
-                        {"name": "document", "type": "doc"}],
-             "outputs": [{"name": "answer", "type": "text"}]
-             },
-        ]
-
-    def selector(self, target):
-        for tool in self.tools:
-            if target == tool['tool']:
-                return tool
-
-        return {"tool": "none", "inputs": "none", "outputs": "none"}
 
     # a tool for generating a chat name
     def naming(self, prompt):
@@ -128,30 +96,3 @@ class Tools:
         answer['citations']=sources
         answer1=json.dumps(answer)
         return answer1, sources
-
-    # tool for retrieving from table and from web
-    def frag(self, table, prompt,history, k=3, size=500):
-        data = self.euclid.search(table, prompt, k)
-        data2 = self.web.search(prompt)
-        data = str(data) + " /n " + str(data2)
-        context = "Data: " + str(data) + "\n Prompt:" + prompt
-        messages = [{"role": "system", "content": self.system}]
-        for message in history:
-            messages.append({"role": "user", "content": message['user']})
-            messages.append({"role": "assistant", "content": str(message['system'])})
-        messages.append({"role": "user", "content": context})
-        answer = self.gpt.json_gpt(messages, size)
-
-        return answer
-
-    # tool for extracting data from a document
-    def extracter(self, phrase, size, documents,history):
-        context = "Documents: " + documents + "\n Prompt:" + phrase
-        messages = [{"role": "system", "content": self.system}]
-        for message in history:
-            messages.append({"role": "user", "content": message['user']})
-            messages.append({"role": "assistant", "content": str(message['system'])})
-        messages.append({"role": "user", "content": context})
-        answer = self.gpt.json_gpt(messages, size)
-
-        return answer
