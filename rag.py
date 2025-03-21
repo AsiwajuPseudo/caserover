@@ -2,7 +2,7 @@ import os
 import json
 from gpt import GPT
 
-class Tools:
+class RAG:
     def __init__(self, euclid):
         self.euclid = euclid
         self.gpt = GPT()
@@ -21,22 +21,6 @@ class Tools:
           columns is an array of the columns contained in the table and every column should be of the format:
             {'title':name of column,'dataIndex':name of index to target the value in the row values,'key':key to target the value in the row values}
           values are an array of rows in the table and every row should be of key-value pairs matching the columns contained like {'':...,'':...}.
-        5. map- for presenting geolocation data. Format={'type':'map','data':{'region':region,'resolution':resolution,'mapData':[...values]},}
-          the region is text string a ISO-3166-1 alpha-2 code identifying a country or, continent or a sub-continent, specified by its 3-digit code, e.g., '011' for Western Africa
-          resolution is for the map borders and it can only be between 'countries' or 'provinces'
-          mapData conatins values which is an array which contains a list of array of each containing 2 values i.e [value1, value2].
-           The first value in the array is the pair [resolution name, value] where the resolution value is either 'Country' or 'Province' and value describes the statistics e.g population, cases etc.
-           The other values are the actual map data e.g. ['Zambia':15000]
-        6. pie chart- for presenting graphical data suitable for a pie chart. Format={'type':'pie chart','data':{'title':title of chart,'values':[...values]},}
-          values is an array which has a list of arrays with two values, the first array being [data name, value name] e.g. ['Country','population'] and the other arrays have the data e.g ['Mali',20]
-        7. bar chart-for presenting data on a vertical bar chart. Format={'type':'bar chart','data':{'vAxis':vertical axis name,'hAxis':horizontal axis name,'values':[...values]},}
-          values is an array which has a list of arrays with 2 or more values, first array in the list contanins identification data e.g ['City', '2010 Population', '2000 Population']
-          The other arrays will then contain the actual values e.g. ['Chicago, IL', 2695000, 2896000]
-          Please note the arrays can be of more than 2 or 3 values.
-        8. area chart-for presenting data on area chart(suitable for line chart too). Format={'type':'area chart','data':{'hAxis':horizontal axis name,'values':[...values]},}
-          values is an array which has a list of arrays with 2 or more values, first array in the list contanins identification data e.g ["Year", "Sales", "Expenses"]
-          The other arrays will then contain the actual values e.g. ["2013", 1000, 400]
-          Please note the arrays can be of more than 2 or 3 values.
 
 
         Your answer should be proper json data.
@@ -47,10 +31,28 @@ class Tools:
         Format of sources array value is {'name':name of source,'access':url or name of document used as source}.
         Do not put an new lines (\n) or tabs (\t) or anything of that nature in your response and your answer should not be of more than 4000 tokens.
         """
+        self.researcher = """
+        You are part of an AI Agent for legal research in Zimbabwe. Your role is to summarize whatever data that has been provided
+        after a vector database search of legislations and case law. Summarize the provided data using the research question as
+        context for your summary. Your summary should be very long and should include only (and all) relevant details to the research
+        question being asked. Take note that the summary will be used by another LLM to generate the final answer hence it should be
+        comprehensive. Your response should be in json format of structure {'summary':'...the summary'}.
+        """
         self.namer="""
         You are part of an AI-powered legal research tool, provide a name for the new chat which a user created on the tool. The name
         should be short (not more than 7 words) and should be based on the user's question. Return a json format response with structure
         {'name':name of chat}.
+        """
+
+        self.phrases="""
+        You are part of an AI agent used for legal research in Zimbabwe. The user asks questions and the agent is required to
+        do a cosine similarity search in a vector database. However, sometimes the user's questions are not enough to generate
+        accurate results from the vector search. Using the user's question (request) and the history in the chat as context,
+        create search phrases that are necessary for an accurate cosine search in the vector database containing case law or
+        legislations. You should return in json format of structure {'phrases':[...list of phrases]}. Your phrases should be able
+        to return accurate result hence they should relevant to what the user is researching, should consider the table being searched
+        and they should be specific. The number of phrases to return and the name of vector database table to be searched is specified
+        at the start of the user's question.
         """
 
     # a tool for generating a chat name
@@ -75,24 +77,55 @@ class Tools:
         answer1=json.dumps(answer)
         return answer1, []
 
+    def phraser(self, prompt, history, table, scope):
+        messages = [{"role": "system", "content": self.phrases}]
+        for message in history:
+            messages.append({"role": "user", "content": message['user']})
+            messages.append({"role": "assistant", "content": str(message['system'])})
+        messages.append({"role": "user", "content": 'Table to be searched: '+ table +', Number of phrases needed: ' +str(scope)+ '. User question: '+ prompt})
+        answ = self.gpt.json_gpt(messages, 4060)
+        answer=json.loads(answ)
+        return answer['phrases']
+
+    def load_unique(self,data):
+        unique_docs = set()
+        for item in data:
+            unique_docs.add((item['citation'],item['table'],item['table_id'],item['file_id'],item['filename'],item['document']))
+        sources=[{'citation': citation, 'table': item['table'], 'table_id': table_id, 'file_id': file_id, 'filename': filename, 'document':document} for citation, table, table_id, file_id, filename, document in unique_docs]
+        return sources
+
     # tool for retrieving from table and answer
-    def rag(self, table, prompt, document, history, k=3, size=500):
-        data = self.euclid.search(table, prompt, k)
-        temp=[{'citation':item['citation'],'content':item['document']} for item in data]
+    def research(self, table, prompt, sources):
+        temp=[{'citation':item['citation'],'content':item['document']} for item in sources]
+        context = "Data: " + str(temp) + "\n Research question:" + prompt
+        messages = [{"role": "system", "content": self.researcher}]
+        messages.append({"role": "user", "content": context})
+        answ = self.gpt.json_gpt(messages, size)
+        answer=json.loads(answ)
+        answer['citations']=[{'citation': item['citation'], 'table': table, 'table_id': item['table_id'], 'file_id': item['file_id'], 'filename': item['filename']} for item in sources]
+        answer1=json.dumps(answer)
+        return answer1, sources
+
+    def single_step(self, table, prompt, history,k=3, scope=1):
+        #first generate phrases
+        phrases=self.phraser(prompt, history, table, scope)
+        raw_sources=[]
+        for phrase in phrases:
+            #search from phrases
+            raw_sources.extend(self.euclid.search(table, prompt, k))
+
+        #RAG for answer
+        sources=self.load_unique(raw_sources)
+        temp=[{'citation':item['citation'],'content':item['document']} for item in sources]
         context = "Data: " + str(temp) + "\n Prompt:" + prompt
-        if document!='':
-            context="My Document(s): "+document+'  \n'+ context
         messages = [{"role": "system", "content": self.system}]
         for message in history:
             messages.append({"role": "user", "content": message['user']})
             messages.append({"role": "assistant", "content": str(message['system'])})
         messages.append({"role": "user", "content": context})
-        unique_styles = set()
-        for item in data:
-            unique_styles.add((item['citation'],table,item['table_id'],item['file_id'],item['filename']))
-        sources=[{'citation': citation, 'table': table, 'table_id': table_id, 'file_id': file_id, 'filename': filename} for citation, table, table_id, file_id, filename in unique_styles]
-        answ = self.gpt.json_gpt(messages, size)
+        answ = self.gpt.json_gpt(messages, 4090)
         answer=json.loads(answ)
-        answer['citations']=sources
+        answer['phrases']=phrases
+        answer['citations']=[{'citation': item['citation'], 'table': table, 'table_id': item['table_id'], 'file_id': item['file_id'], 'filename': item['filename']} for item in sources]
         answer1=json.dumps(answer)
         return answer1, sources
