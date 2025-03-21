@@ -306,7 +306,7 @@ def run_playground():
     if 'document' in data:
       document=data.get('document')
     history = database.messages(chat)
-    answer, sources = rag.single_step(tool, prompt, history, 3, 2)
+    answer, sources = rag.single_step(tool, prompt, history, 3, 3)
   except Exception as e:
     traceback.print_exc()
     p={"answer":[{"type":"paragraph","data":"Error generating content, please try again. If the error persist create a new workspace."}],"sources":[], "citations":[]}
