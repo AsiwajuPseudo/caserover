@@ -112,8 +112,10 @@ class Process:
         text = ''
         for t in document:
             text = text +'\n'+ t['text']
+        splitter1 = TokenTextSplitter(chunk_size=4000, chunk_overlap=200)
+        chunker=splitter1.split_text(text)
         messages = [{'role': 'system', 'content': [{'type': 'text', 'text': self.act}]}]
-        messages.append({'role': 'user', 'content': [{'type': 'text', 'text': text}]})
+        messages.append({'role': 'user', 'content': [{'type': 'text', 'text': chunker[0]}]})
         try:
             raw_json = self.gpt.json_gpt(messages)
             content = json.loads(raw_json)
