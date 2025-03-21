@@ -12,16 +12,16 @@ from flask_cors import CORS
 
 #local libraries
 from database import Database
-# from file_control import File_Control
-# from collector import Collector
-# from process import Process
-# from euclid import Euclid
-# from graph import Graph
-# from tools import Tools
-# from rag import RAG
+from file_control import File_Control
+from collector import Collector
+from process import Process
+from euclid import Euclid
+from graph import Graph
+from tools import Tools
+from rag import RAG
 
 database=Database()
-# collections=Euclid()
+collections=Euclid()
 
 app = Flask(__name__)
 CORS(app)
