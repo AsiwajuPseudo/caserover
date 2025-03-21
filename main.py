@@ -93,11 +93,16 @@ def get_superusers():
     return result
 
 # Delete a superuser
-@app.route('/delete_superuser', methods=['POST'])
+@app.route('/delete_superuser', methods=['DELETE'])
 def delete_superuser():
     data = request.get_json()
     admin_id = data.get('admin_id')
     admin_id_to_delete_id = data.get('admin_id_to_delete')
+    
+    admin_check = database.get_superusers(admin_id)
+    if admin_check.get("status") != "success":
+      return {'status': 'Unauthorized access!'}, 403
+    
     result = database.delete_superuser(admin_id, admin_id_to_delete_id)
     return result
 
@@ -124,9 +129,14 @@ def register():
 @app.route('/password', methods=['POST'])
 def change_password():
   data = request.get_json()
+  user_id = data.get('user_id')
   old_password = data.get('old_password')
   new_password = data.get('new_password')
-  user_id = data.get('user_id')
+  
+  logged_in_user = request.headers.get("user_id")
+  if logged_in_user != user_id:
+    return {'status': 'Unauthorized access!'}, 403
+  
   passwd = database.change_password(user_id, old_password, new_password)
   return passwd
 
@@ -137,9 +147,15 @@ def view_user_profile():
   profile = database.user_profile(user_id)
   return profile
 
-#view all users profile
+#view all users profile (superusers only)
 @app.route('/allusers', methods=['GET'])
 def view_all_profiles():
+  admin_id = request.args.get('admin_id')
+  
+  admin_check = database.get_superusers(admin_id)
+  if admin_check.get("status") != "success":
+    return {"status": "Unauthorized access!"}, 403
+  
   users = database.profiles()
   return {'users': users}
 
@@ -150,6 +166,12 @@ def subscribe_user():
   user_id=data.get('user_id')
   admin_id=data.get('admin_id')
   next_date=data.get('next_date')
+  
+      # Ensure requester is a superuser
+  superuser_check = database.get_superusers(admin_id)
+  if superuser_check.get("status") != "success":
+      return {"status": "Unauthorized access! Superusers only."}, 403
+    
   update=database.subscribe_user(admin_id, user_id, next_date)
   users=database.profiles()
   return {'status':update,'users':users}
@@ -161,15 +183,27 @@ def subscribe_orginisation():
   admin_id=data.get('admin_id')
   code = data.get('code')
   next_date=data.get('next_date')
+  
+  # Ensure requester is a superuser
+  superuser_check = database.get_superusers(admin_id)
+  if superuser_check.get("status") != "success":
+      return {"status": "Unauthorized access! Superusers only."}, 403
+    
   update=database.subscribe_org(admin_id, code,next_date)
   users=database.profiles()
   return {'status': update,'users':users}
 
 # Delete a user profile
-@app.route('/delete_user', methods=['GET'])
+@app.route('/delete_user', methods=['DELETE'])
 def delete_profile():
+  admin_id = request.args.get('admin_id') # Superuser ID
   user_id=request.args.get('user_id')
-  op = database.delete_user(user_id)
+  
+  superuser_check = database.get_superusers(admin_id)
+  if superuser_check.get("status") != "success":
+    return {"status": "Unauthorized access! Superusers only."}, 403
+  
+  op = database.delete_user(admin_id, user_id)
   users=database.profiles()
   return {'status': op, 'users':users}
 
@@ -197,7 +231,7 @@ def admin_add_user():
         return result
     
 # Admin deletes a user from their lawfirm
-@app.route('/admin_delete_user', methods=['POST'])
+@app.route('/admin_delete_user', methods=['DELETE'])
 def admin_delete_user():
     data = request.get_json()
     admin_id = data.get('admin_id')
@@ -220,12 +254,19 @@ def get_org_users():
     return results
     
 # Admin updates a user's status in their lawfirm
-@app.route('/admin_update_user_status', methods=['POST'])
+@app.route('/admin_update_user_status', methods=['PATCH'])
 def admin_update_user_status():
     data = request.get_json()
     admin_id = data.get('admin_id')
     user_id = data.get('user_id')
     new_status = data.get('status')
+    
+    # Ensure admin belongs to the same organization
+    admin_info = database.user_profile(admin_id)
+    user_info = database.user_profile(user_id)
+    
+    if admin_info.get("code") != user_info.get("code"):
+        return {'status': 'Unauthorized action! Users must be in the same organization.'}, 403
     
     update = database.admin_update_user_status(admin_id, user_id, new_status)
     

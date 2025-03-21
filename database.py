@@ -241,10 +241,26 @@ class Database:
         except Exception as e:
             return {"status": "Error: " + str(e)}
     
-    def delete_user(self, user_id):
+    # Super user delete user
+    def delete_user(self, admin_id, user_id):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                
+                # Verify requester is a superuser
+                cursor.execute("SELECT * FROM superusers WHERE admin_id=?", (admin_id,))
+                requesting_admin = cursor.fetchone()
+
+                if not requesting_admin:
+                    return {"status": "Unauthorized access! Invalid superuser ID."}
+                
+                # Verify user exists
+                cursor.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+                existing_user = cursor.fetchone()
+                print(f"User Found: {existing_user}")
+                if not existing_user:
+                    return {"status": "User does not exist!"}
+                # Delete user
                 cursor.execute("DELETE FROM users WHERE user_id=?", (user_id,))
                 conn.commit()
                 return {"status":"success"}
@@ -293,7 +309,7 @@ class Database:
         except Exception as e:
             return {"status": "Error: " + str(e)}
  
-    # Admin delete user
+    # Org Admin delete user in org
     def admin_delete_user(self, admin_id, user_id_to_delete):
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -458,6 +474,12 @@ class Database:
                 requesting_admin = cursor.fetchone()
                 if not requesting_admin:
                     return {"status": "Unauthorized access!"}
+                
+                # Verify user exists
+                cursor.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+                existing_user = cursor.fetchone()
+                if not existing_user:
+                    return {"status": "User does not exist!"}
                 
                 cursor.execute("UPDATE users SET next_date=?, status='Subscribed' WHERE user_id=?", (next_date, user_id))
                 conn.commit()
