@@ -179,6 +179,7 @@ class Process:
             #end for
             for section in new_sections:
                 sec_text=' '.join(section['lines'])
+                sec_text=legi['citation']+' : '+sec_text
                 splitter = TokenTextSplitter(chunk_size=500, chunk_overlap=150)
                 chunks=splitter.split_text(sec_text)
                 for chunk in chunks:
