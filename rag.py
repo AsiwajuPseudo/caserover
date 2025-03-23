@@ -113,18 +113,20 @@ class RAG:
         answer1=json.dumps(answer)
         return answer1, sources
 
-    def single_step(self, table, prompt, history,k=3, scope=1):
+    def single_step(self, table, prompt, history, document, k=3, scope=1):
         #first generate phrases
         phrases=self.phraser(prompt, history, table, scope)
         raw_sources=[]
         for phrase in phrases:
             #search from phrases
-            raw_sources.extend(self.euclid.search(table, prompt, k))
+            raw_sources.extend(self.euclid.search(table, phrase, k))
 
         #RAG for answer
         sources=self.load_unique_docu(raw_sources)
         temp=[{'citation':item['citation'],'content':item['document']} for item in sources]
         context = "Data: " + str(temp) + "\n Prompt:" + prompt
+        if document!='':
+            context="User's Document: "+document+"\n "+ context
         messages = [{"role": "system", "content": self.system}]
         for message in history:
             messages.append({"role": "user", "content": message['user']})
@@ -134,14 +136,5 @@ class RAG:
         answer=json.loads(answ)
         answer['phrases']=phrases
         sources=self.load_unique(sources)
-        answer['citations']=[{'citation': item['citation'], 'table': table, 'table_id': item['table_id'], 'file_id': item['file_id'], 'filename': item['filename']} for item in sources]
         answer1=json.dumps(answer)
         return answer1, sources
-
-    def multi_step(self, table, prompt, history, k=5, scope=5):
-        #first generate phrases
-        phrases=self.phraser(prompt, history, table, scope)
-        raw_sources=[]
-        for phrase in phrases:
-            #search from phrases
-            raw_sources.extend(self.euclid.search(table, prompt, k))
