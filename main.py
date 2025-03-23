@@ -334,11 +334,10 @@ def run_playground():
   user = data.get('user_id')
   prompt = data.get('prompt')
   tool = data.get('tool')
-  tools = Tools(collections)
   rag= RAG(collections)
   # Check if there is a valid chat or it's a new one
   if chat == '' or chat is None:
-    name = tools.naming(prompt)
+    name = rag.naming(prompt)
     add = database.add_chat(user, name)
     chat = add['chat']
   # Execute
