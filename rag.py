@@ -136,5 +136,6 @@ class RAG:
         answer=json.loads(answ)
         answer['phrases']=phrases
         sources=self.load_unique(sources)
+        answer['citations']=sources
         answer1=json.dumps(answer)
         return answer1, sources
