@@ -207,6 +207,23 @@ def delete_profile():
   users=database.profiles()
   return {'status': op, 'users':users}
 
+@app.route('/user_usage', methods=['GET'])
+def get_user_usage():
+  user_id = request.args.get('user_id')
+  result = database.get_user_usage(user_id)
+  return result
+
+@app.route('/all_users_usage', methods=['GET'])
+def get_all_users_usage():
+  admin_id = request.args.get('admin_id')
+  
+  superuser_check = database.get_superusers(admin_id)
+  if superuser_check.get("status") != "success":
+    return {"status": "Unauthorized access!"}, 403
+  
+  result = database.get_all_users_usage(admin_id)
+  return result
+
 #---------------------------------------------------------------------------------------------------------------
 
 # ADMIN USER MANAGEMENT

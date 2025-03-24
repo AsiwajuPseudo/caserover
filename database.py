@@ -805,3 +805,63 @@ class Database:
         except Exception as e:
             return {"status":"Error: "+str(e)}
 
+
+#----------------------USAGE TRACKING------------------------
+
+    def get_user_usage(self, user_id):
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Count chats created by the user
+                cursor.execute("SELECT COUNT(*) FROM chats WHERE user_id=?", (user_id,))
+                chat_count = cursor.fetchone()[0]
+                
+                # Count messages sent by the user
+                cursor.execute("SELECT COUNT(*) FROM messages WHERE user_id =?", (user_id,))
+                message_count = cursor.fetchone()[0]
+                
+                return {"status": "success", "chat_count": chat_count, "message_count": message_count}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
+        
+    def get_all_users_usage(self, admin_id):
+        try:
+            if not admin_id:
+                return {"status": "Invalid admin_id provided!"}
+
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # Check if requester is a superuser (Ensure admin_id is a string)
+                cursor.execute("SELECT COUNT(*) FROM superusers WHERE admin_id=?", (str(admin_id),))
+                if cursor.fetchone()[0] == 0:
+                    return {"status": "Unauthorized access!"}
+
+                # Get all users
+                cursor.execute("SELECT user_id, name, email FROM users")
+                users = cursor.fetchall()
+
+                usage_data = []
+                for user in users:
+                    user_id, name, email = user
+
+                    # Get chat count
+                    cursor.execute("SELECT COUNT(*) FROM chats WHERE user_id=?", (str(user_id),))
+                    chat_count = cursor.fetchone()[0]
+
+                    # Get message count
+                    cursor.execute("SELECT COUNT(*) FROM messages WHERE user_id=?", (str(user_id),))
+                    message_count = cursor.fetchone()[0]
+
+                    usage_data.append({
+                        "user_id": user_id,
+                        "name": name,
+                        "email": email,
+                        "chat_count": chat_count,
+                        "message_count": message_count
+                    })
+
+                return {"status": "success", "users": usage_data}
+        except Exception as e:
+            return {"status": "Error: " + str(e)}
