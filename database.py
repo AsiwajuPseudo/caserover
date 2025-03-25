@@ -101,7 +101,7 @@ class Database:
                 admin = cursor.fetchone()
                 if admin:
                     admin_id = admin[0]
-                    return {"status": "success","admin":admin_id}
+                    return {"status": "success","admin_id":admin_id}
                 else:
                     return {"status": "Invalid email or password"}
         except Exception as e:
@@ -404,6 +404,18 @@ class Database:
                 return {"status": "success"}
         except Exception as e:
             return {"status": "Error: " + str(e)}
+        
+    def get_isadmin(self, user_id):
+        """Fetches isadmin status of a user"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT isadmin FROM users WHERE user_id=?", (user_id,))
+                result = cursor.fetchone()
+                return result[0] if result else "false"
+        except Exception as e:
+            print("Error fetching isadmin status:", e)
+            return "false"
     
     def login(self, email, password):
         try:
@@ -425,7 +437,7 @@ class Database:
                     current_date = datetime.now().date()
                     # Check if current date is before the next billing date
                     if current_date < datetime.strptime(next_billing_date, "%Y-%m-%d").date():
-                        return {"status": "success", "user": user_id}
+                        return {"status": "success", "user": user_id, "isadmin": user[10] == "true"}
                     else:
                         return {"status": "billing required"}
                 else:
